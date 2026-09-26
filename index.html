@@ -13,6 +13,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&family=Montserrat:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;600;700;800&family=Playfair+Display:wght@500;700;900&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     
+    <!-- PDF.js for parsing and extracting text from uploaded PDF CVs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -114,7 +122,7 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            .no-print, header, aside, button, .sidebar-scroll {
+            .no-print, header, aside, button, .sidebar-scroll, #toastContainer {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0 !important;
@@ -170,6 +178,15 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-inter antialiased min-h-screen flex flex-col">
 
+    <!-- Toast Notification Overlay -->
+    <div id="toastContainer" class="fixed top-20 right-5 z-50 flex flex-col space-y-2 pointer-events-none transition-all"></div>
+
+    <!-- Hidden Input For JSON File Import -->
+    <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" onchange="handleJsonFileChosen(event)">
+
+    <!-- Hidden Input For PDF File Import -->
+    <input type="file" id="pdfFileInput" accept=".pdf,application/pdf" class="hidden" onchange="handlePdfFileChosen(event)">
+
     <!-- Top Action Navigation Bar -->
     <header class="no-print bg-slate-800 border-b border-slate-700 h-16 flex items-center justify-between px-4 z-20 sticky top-0 shadow-md">
         <div class="flex items-center space-x-3">
@@ -178,31 +195,49 @@
             </div>
             <div>
                 <h1 class="font-bold text-base md:text-lg text-white leading-tight">Pro CV Studio</h1>
-                <p class="text-xs text-blue-400 font-medium hidden sm:block">Created by: <span class="font-bold text-white">Amanullah Khan</span></p>
+                <p class="text-xs text-blue-400 font-medium hidden sm:block">Professional Resume Creator</p>
             </div>
         </div>
 
-        <!-- Controls & Print Trigger -->
-        <div class="flex items-center space-x-2 md:space-x-4">
+        <!-- Controls, JSON/PDF Actions & Print Trigger -->
+        <div class="flex items-center space-x-2 md:space-x-3">
             <!-- Canvas Zoom Level -->
-            <div class="hidden md:flex items-center space-x-2 bg-slate-700/60 px-3 py-1.5 rounded-lg text-xs text-slate-300">
+            <div class="hidden lg:flex items-center space-x-2 bg-slate-700/60 px-3 py-1.5 rounded-lg text-xs text-slate-300">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <span>Preview Zoom:</span>
+                <span>Zoom:</span>
                 <button onclick="setZoom(0.75)" class="hover:text-white px-1">75%</button>
                 <button onclick="setZoom(0.85)" class="hover:text-white px-1">85%</button>
                 <button onclick="setZoom(1.0)" class="hover:text-white px-1 font-bold text-blue-400">100%</button>
             </div>
 
             <!-- Page Overflow Badge -->
-            <div id="overflowBadge" class="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div id="overflowBadge" class="hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <i class="fa-solid fa-circle-check"></i>
                 <span>1-Page Fit: OK</span>
             </div>
 
+            <!-- Upload PDF CV Button -->
+            <button onclick="triggerImportPdf()" title="Upload a PDF CV to extract information" class="bg-rose-600 hover:bg-rose-500 text-white font-medium px-3 py-1.5 md:px-3.5 md:py-2 rounded-lg text-xs md:text-sm flex items-center space-x-1.5 transition-all shadow border border-rose-500">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>Upload PDF</span>
+            </button>
+
+            <!-- Import JSON Button -->
+            <button onclick="triggerImportJson()" title="Import CV data from a JSON file" class="bg-slate-700 hover:bg-slate-600 text-slate-100 font-medium px-3 py-1.5 md:px-3.5 md:py-2 rounded-lg text-xs md:text-sm flex items-center space-x-1.5 transition-all border border-slate-600 shadow">
+                <i class="fa-solid fa-file-import text-blue-400"></i>
+                <span>Import JSON</span>
+            </button>
+
+            <!-- Export / Download JSON Button -->
+            <button onclick="downloadJsonFile()" title="Download current CV data and styles as JSON" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3 py-1.5 md:px-3.5 md:py-2 rounded-lg text-xs md:text-sm flex items-center space-x-1.5 transition-all shadow-md shadow-indigo-900/30">
+                <i class="fa-solid fa-download"></i>
+                <span>Export JSON</span>
+            </button>
+
             <!-- Print PDF Button -->
-            <button onclick="triggerPrint()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center space-x-2 transition-all shadow-lg shadow-emerald-900/30">
+            <button onclick="triggerPrint()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm flex items-center space-x-1.5 transition-all shadow-lg shadow-emerald-900/30">
                 <i class="fa-solid fa-print"></i>
-                <span>Print / Export PDF</span>
+                <span>Print / PDF</span>
             </button>
         </div>
     </header>
@@ -223,6 +258,27 @@
                     <i class="fa-solid fa-pen-to-square"></i>
                     <span>Content & Details</span>
                 </button>
+            </div>
+
+            <!-- Quick Data Management Card in Sidebar -->
+            <div class="px-4 pt-3">
+                <div class="bg-slate-750/70 border border-slate-700/80 rounded-lg p-2.5 flex items-center justify-between">
+                    <div class="text-xs text-slate-300">
+                        <span class="font-semibold block text-slate-200">Data Import & Sync</span>
+                        <span class="text-[11px] text-slate-400">Load PDF / JSON or save locally</span>
+                    </div>
+                    <div class="flex space-x-1.5">
+                        <button onclick="triggerImportPdf()" class="bg-rose-600/80 hover:bg-rose-600 text-white text-xs px-2.5 py-1 rounded transition-colors" title="Extract from PDF CV">
+                            <i class="fa-solid fa-file-pdf mr-1"></i>PDF
+                        </button>
+                        <button onclick="triggerImportJson()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-2.5 py-1 rounded border border-slate-600 transition-colors" title="Load JSON">
+                            <i class="fa-solid fa-upload mr-1 text-blue-400"></i>JSON
+                        </button>
+                        <button onclick="downloadJsonFile()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1 rounded transition-colors" title="Download JSON">
+                            <i class="fa-solid fa-download mr-1"></i>Save
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Sidebar Scrollable Container -->
@@ -473,10 +529,10 @@
                         </div>
                     </details>
 
-                    <!-- Languages, Awards & Footer Signature -->
+                    <!-- Languages & Awards -->
                     <details class="bg-slate-750 border border-slate-700 rounded-xl overflow-hidden group">
                         <summary class="px-4 py-3 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-300 flex justify-between items-center bg-slate-800">
-                            <span><i class="fa-solid fa-trophy text-blue-400 mr-2"></i> Languages, Awards & Watermark</span>
+                            <span><i class="fa-solid fa-trophy text-blue-400 mr-2"></i> Languages & Awards</span>
                             <i class="fa-solid fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform"></i>
                         </summary>
                         <div class="p-4 space-y-4 bg-slate-800/50">
@@ -489,31 +545,25 @@
                                 <textarea id="input-awards" rows="2" oninput="updateData()" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">2023 | International Design Excellence Award
 2021 | Best Digital Agency Creative Lead</textarea>
                             </div>
-                            <div class="flex items-center justify-between pt-2 border-t border-slate-700">
-                                <span class="text-xs text-slate-300">Show 'Created by: Amanullah Khan' on CV footer</span>
-                                <input type="checkbox" id="showWatermark" onchange="renderCV()" checked class="w-4 h-4 accent-blue-500 rounded cursor-pointer">
-                            </div>
                         </div>
                     </details>
 
                 </div>
             </div>
 
-            <!-- Creator Credit Footer -->
+            <!-- Footer -->
             <div class="p-3 bg-slate-850 border-t border-slate-700 text-center text-xs text-slate-400">
-                Created by: <span class="font-bold text-slate-200">Amanullah Khan</span>
+                Pro CV Studio &bull; Ready for A4 Print & PDF
             </div>
         </aside>
 
         <!-- Right Interactive Preview Area -->
         <main class="flex-1 bg-slate-950 flex flex-col items-center justify-start overflow-auto p-4 md:p-8 relative">
-            
             <div id="canvasScaler" class="canvas-scale-container transition-transform duration-150 origin-top">
                 <div id="cvPage" class="a4-page font-montserrat text-slate-800 relative shadow-2xl flex flex-col">
                     <!-- Dynamic CV template renders here -->
                 </div>
             </div>
-
         </main>
     </div>
 
@@ -565,6 +615,463 @@
             renderReferenceInputs();
             renderCV();
         };
+
+        // Toast message notifications (replaces any alerts)
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const isSuccess = type === 'success';
+            const bgColor = isSuccess ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white';
+            const icon = isSuccess ? 'fa-circle-check' : 'fa-triangle-exclamation';
+
+            toast.className = `${bgColor} px-4 py-2.5 rounded-lg shadow-xl text-xs md:text-sm font-semibold flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3500);
+        }
+
+        // Export/Download current state as a JSON file
+        function downloadJsonFile() {
+            try {
+                // Consolidate content & design settings
+                const exportPayload = {
+                    version: "1.0",
+                    exportedAt: new Date().toISOString(),
+                    cvData: cvData,
+                    settings: {
+                        template: currentTemplate,
+                        fontFamily: currentFont,
+                        baseFontSize: baseFontSize,
+                        photoSize: photoSize,
+                        photoUrl: photoUrl,
+                        photoShape: document.getElementById('photoShape').value,
+                        primaryColor: document.getElementById('primaryColorPicker').value,
+                        accentColor: document.getElementById('accentColorPicker').value,
+                        skillDisplayStyle: document.getElementById('skillDisplayStyle').value
+                    }
+                };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+                const downloadAnchor = document.createElement('a');
+                
+                // Construct clean filename based on applicant's name
+                const sanitizedName = (cvData.fullName || 'cv-data')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/gi, '_')
+                    .replace(/_+/g, '_');
+                
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `${sanitizedName}_cv.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+
+                showNotification('CV data successfully exported to JSON!', 'success');
+            } catch (err) {
+                console.error("Export error:", err);
+                showNotification('Failed to export JSON file.', 'error');
+            }
+        }
+
+        // Trigger PDF file input click
+        function triggerImportPdf() {
+            const input = document.getElementById('pdfFileInput');
+            input.value = '';
+            input.click();
+        }
+
+        // Handle uploaded PDF CV file
+        async function handlePdfFileChosen(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            showNotification('Reading and extracting text from PDF...', 'success');
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const typedArray = new Uint8Array(e.target.result);
+                    if (!window.pdfjsLib) {
+                        showNotification('PDF parser library not loaded. Please check your internet connection.', 'error');
+                        return;
+                    }
+                    const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+                    let fullText = '';
+                    let lines = [];
+
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageLines = [];
+                        let lastY = null;
+                        let currentLine = '';
+
+                        for (const item of textContent.items) {
+                            if (lastY === null || Math.abs(item.transform[5] - lastY) < 5) {
+                                currentLine += (currentLine ? ' ' : '') + item.str.trim();
+                            } else {
+                                if (currentLine.trim()) pageLines.push(currentLine.trim());
+                                currentLine = item.str.trim();
+                            }
+                            lastY = item.transform[5];
+                        }
+                        if (currentLine.trim()) pageLines.push(currentLine.trim());
+                        lines.push(...pageLines);
+                        fullText += pageLines.join('\n') + '\n';
+                    }
+
+                    parseAndApplyPdfContent(lines, fullText, file.name);
+                } catch (err) {
+                    console.error('PDF parsing error:', err);
+                    showNotification('Could not extract text from this PDF file.', 'error');
+                }
+            };
+
+            reader.onerror = function() {
+                showNotification('Error reading PDF file from disk.', 'error');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Heuristic extractor for PDF lines
+        function parseAndApplyPdfContent(lines, fullText, fileName) {
+            // Clean lines
+            const cleanLines = lines.map(l => l.trim()).filter(l => l.length > 0);
+            if (cleanLines.length === 0) {
+                showNotification('The uploaded PDF has no extractable text (it might be a scanned image).', 'error');
+                return;
+            }
+
+            // Extract email
+            const emailMatch = fullText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (emailMatch) {
+                cvData.email = emailMatch[0];
+            }
+
+            // Extract phone
+            const phoneMatch = fullText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/);
+            if (phoneMatch && phoneMatch[0].length >= 8) {
+                cvData.phone = phoneMatch[0].trim();
+            }
+
+            // Extract website / linkedin / portfolio
+            const webMatch = fullText.match(/(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b[-a-zA-Z0-9@:%_\+.~#?&//=]*/i);
+            if (webMatch && !webMatch[0].includes('@') && !webMatch[0].includes('w3.org')) {
+                cvData.website = webMatch[0];
+            }
+
+            // Find full name (usually among the first 3 lines, excluding email/phone/urls)
+            for (let i = 0; i < Math.min(cleanLines.length, 5); i++) {
+                const line = cleanLines[i];
+                if (!line.includes('@') && !line.match(/\d{4}/) && !line.toLowerCase().includes('curriculum') && !line.toLowerCase().includes('resume') && line.length < 40 && line.length > 2) {
+                    cvData.fullName = line.replace(/^(name\s*:\s*)/i, '').trim();
+                    // Attempt next line as job title if available
+                    if (cleanLines[i + 1] && cleanLines[i + 1].length < 50 && !cleanLines[i + 1].includes('@')) {
+                        cvData.jobTitle = cleanLines[i + 1].trim();
+                    }
+                    break;
+                }
+            }
+
+            // Section boundary detection
+            const sectionKeywords = [
+                { key: 'summary', regex: /^(about\s*me|summary|profile|professional\s*summary|objective)/i },
+                { key: 'experience', regex: /^(work\s*experience|experience|employment|professional\s*experience|work\s*history)/i },
+                { key: 'education', regex: /^(education|academic|qualifications|academic\s*background)/i },
+                { key: 'skills', regex: /^(skills|expertise|technical\s*skills|core\s*competencies)/i },
+                { key: 'languages', regex: /^(languages|language\s*proficiency)/i },
+                { key: 'awards', regex: /^(awards|honors|achievements|certifications)/i },
+                { key: 'references', regex: /^(references|referees)/i }
+            ];
+
+            const sections = {};
+            let currentSec = null;
+
+            for (let i = 0; i < cleanLines.length; i++) {
+                const line = cleanLines[i];
+                let matchedSec = null;
+
+                for (const sec of sectionKeywords) {
+                    if (sec.regex.test(line.replace(/[:\-#]/g, '').trim())) {
+                        matchedSec = sec.key;
+                        break;
+                    }
+                }
+
+                if (matchedSec) {
+                    currentSec = matchedSec;
+                    if (!sections[currentSec]) sections[currentSec] = [];
+                } else if (currentSec) {
+                    sections[currentSec].push(line);
+                }
+            }
+
+            // Populate Summary
+            if (sections.summary && sections.summary.length > 0) {
+                cvData.summary = sections.summary.slice(0, 4).join(' ');
+            }
+
+            // Populate Languages
+            if (sections.languages && sections.languages.length > 0) {
+                cvData.languages = sections.languages.join(', ');
+            }
+
+            // Populate Awards
+            if (sections.awards && sections.awards.length > 0) {
+                cvData.awards = sections.awards.slice(0, 4).join('\n');
+            }
+
+            // Populate Skills
+            if (sections.skills && sections.skills.length > 0) {
+                const extractedSkills = [];
+                sections.skills.forEach(sLine => {
+                    const tokens = sLine.split(/[,•|·\n\t]/).map(t => t.trim()).filter(t => t.length > 1 && t.length < 30);
+                    tokens.forEach(tok => {
+                        if (!extractedSkills.some(existing => existing.toLowerCase() === tok.toLowerCase()) && extractedSkills.length < 8) {
+                            extractedSkills.push(tok);
+                        }
+                    });
+                });
+                if (extractedSkills.length > 0) {
+                    cvData.skills = extractedSkills.map(name => ({ name, level: 85 }));
+                }
+            }
+
+            // Populate Experiences
+            if (sections.experience && sections.experience.length > 0) {
+                const parsedExps = [];
+                let currExp = null;
+
+                sections.experience.forEach(line => {
+                    const dateMatch = line.match(/(?:19|20)\d{2}\s*[-–—to]+\s*(?:(?:19|20)\d{2}|present|current)/i) || line.match(/(?:19|20)\d{2}/);
+                    if (dateMatch && (!currExp || currExp.desc.length > 0)) {
+                        if (currExp) parsedExps.push(currExp);
+                        currExp = {
+                            id: Date.now() + Math.random(),
+                            title: line.replace(dateMatch[0], '').replace(/[|\-•]/g, '').trim() || 'Role Title',
+                            company: 'Company',
+                            years: dateMatch[0].toUpperCase(),
+                            desc: ''
+                        };
+                    } else if (currExp) {
+                        if (!currExp.company || currExp.company === 'Company') {
+                            currExp.company = line;
+                        } else {
+                            currExp.desc += (currExp.desc ? ' ' : '') + line;
+                        }
+                    }
+                });
+
+                if (currExp) parsedExps.push(currExp);
+                if (parsedExps.length > 0) {
+                    cvData.experiences = parsedExps.slice(0, 4);
+                }
+            }
+
+            // Populate Education
+            if (sections.education && sections.education.length > 0) {
+                const parsedEdus = [];
+                let currEdu = null;
+
+                sections.education.forEach(line => {
+                    const dateMatch = line.match(/(?:19|20)\d{2}\s*[-–—to]+\s*(?:(?:19|20)\d{2}|present)/i) || line.match(/(?:19|20)\d{2}/);
+                    if (dateMatch && (!currEdu || currEdu.school)) {
+                        if (currEdu) parsedEdus.push(currEdu);
+                        currEdu = {
+                            id: Date.now() + Math.random(),
+                            degree: line.replace(dateMatch[0], '').replace(/[|\-•]/g, '').trim() || 'Degree / Diploma',
+                            school: '',
+                            years: dateMatch[0],
+                            desc: ''
+                        };
+                    } else if (currEdu) {
+                        if (!currEdu.school) {
+                            currEdu.school = line;
+                        }
+                    }
+                });
+
+                if (currEdu) parsedEdus.push(currEdu);
+                if (parsedEdus.length > 0) {
+                    cvData.educations = parsedEdus.slice(0, 3);
+                }
+            }
+
+            // Sync form fields
+            document.getElementById('input-fullname').value = cvData.fullName || '';
+            document.getElementById('input-jobtitle').value = cvData.jobTitle || '';
+            document.getElementById('input-email').value = cvData.email || '';
+            document.getElementById('input-phone').value = cvData.phone || '';
+            document.getElementById('input-address').value = cvData.address || '';
+            document.getElementById('input-website').value = cvData.website || '';
+            document.getElementById('input-summary').value = cvData.summary || '';
+            document.getElementById('input-languages').value = cvData.languages || '';
+            document.getElementById('input-awards').value = cvData.awards || '';
+
+            renderExperienceInputs();
+            renderEducationInputs();
+            renderSkillInputs();
+            renderReferenceInputs();
+            renderCV();
+
+            showNotification(`Parsed details successfully from "${fileName}"!`, 'success');
+        }
+
+        // Trigger hidden file input click
+        function triggerImportJson() {
+            const input = document.getElementById('jsonFileInput');
+            input.value = ''; // Reset so repeated file selections trigger change
+            input.click();
+        }
+
+        // Handle uploaded JSON file
+        function handleJsonFileChosen(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    applyImportedData(parsed);
+                    showNotification(`Loaded "${file.name}" successfully!`, 'success');
+                } catch (err) {
+                    console.error("Invalid JSON:", err);
+                    showNotification('Invalid JSON file format. Please upload a valid CV JSON file.', 'error');
+                }
+            };
+
+            reader.onerror = function() {
+                showNotification('Error reading file from disk.', 'error');
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Apply parsed JSON structure to application state and user interface
+        function applyImportedData(data) {
+            // Handle both packaged schema { cvData, settings } or flat data
+            const importedCv = data.cvData || data;
+
+            if (importedCv.fullName !== undefined) cvData.fullName = importedCv.fullName;
+            if (importedCv.jobTitle !== undefined) cvData.jobTitle = importedCv.jobTitle;
+            if (importedCv.email !== undefined) cvData.email = importedCv.email;
+            if (importedCv.phone !== undefined) cvData.phone = importedCv.phone;
+            if (importedCv.address !== undefined) cvData.address = importedCv.address;
+            if (importedCv.website !== undefined) cvData.website = importedCv.website;
+            if (importedCv.summary !== undefined) cvData.summary = importedCv.summary;
+            if (importedCv.languages !== undefined) cvData.languages = importedCv.languages;
+            if (importedCv.awards !== undefined) cvData.awards = importedCv.awards;
+
+            if (Array.isArray(importedCv.experiences)) {
+                cvData.experiences = importedCv.experiences.map((exp, idx) => ({
+                    id: exp.id || Date.now() + idx,
+                    title: exp.title || '',
+                    company: exp.company || '',
+                    years: exp.years || '',
+                    desc: exp.desc || ''
+                }));
+            }
+
+            if (Array.isArray(importedCv.educations)) {
+                cvData.educations = importedCv.educations.map((edu, idx) => ({
+                    id: edu.id || Date.now() + idx,
+                    degree: edu.degree || '',
+                    school: edu.school || '',
+                    years: edu.years || '',
+                    desc: edu.desc || ''
+                }));
+            }
+
+            if (Array.isArray(importedCv.skills)) {
+                cvData.skills = importedCv.skills.map(s => ({
+                    name: s.name || '',
+                    level: parseInt(s.level) || 80
+                }));
+            }
+
+            if (Array.isArray(importedCv.references)) {
+                cvData.references = importedCv.references.map((r, idx) => ({
+                    id: r.id || Date.now() + idx,
+                    name: r.name || '',
+                    title: r.title || '',
+                    phone: r.phone || '',
+                    email: r.email || ''
+                }));
+            }
+
+            // Sync Personal text input values
+            document.getElementById('input-fullname').value = cvData.fullName || '';
+            document.getElementById('input-jobtitle').value = cvData.jobTitle || '';
+            document.getElementById('input-email').value = cvData.email || '';
+            document.getElementById('input-phone').value = cvData.phone || '';
+            document.getElementById('input-address').value = cvData.address || '';
+            document.getElementById('input-website').value = cvData.website || '';
+            document.getElementById('input-summary').value = cvData.summary || '';
+            document.getElementById('input-languages').value = cvData.languages || '';
+            document.getElementById('input-awards').value = cvData.awards || '';
+
+            // Apply Settings / Design configurations if available
+            if (data.settings) {
+                const s = data.settings;
+                if (s.fontFamily) {
+                    document.getElementById('fontSelector').value = s.fontFamily;
+                    updateFontFamily(s.fontFamily);
+                }
+                if (s.baseFontSize) {
+                    document.getElementById('fontSizeSlider').value = s.baseFontSize;
+                    updateFontSize(s.baseFontSize);
+                }
+                if (s.photoSize) {
+                    document.getElementById('photoSizeSlider').value = s.photoSize;
+                    updatePhotoSize(s.photoSize);
+                }
+                if (s.photoUrl) {
+                    photoUrl = s.photoUrl;
+                    document.getElementById('avatarPreview').src = photoUrl;
+                }
+                if (s.photoShape) {
+                    document.getElementById('photoShape').value = s.photoShape;
+                }
+                if (s.primaryColor) {
+                    document.getElementById('primaryColorPicker').value = s.primaryColor;
+                    document.getElementById('primaryColorHex').innerText = s.primaryColor;
+                }
+                if (s.accentColor) {
+                    document.getElementById('accentColorPicker').value = s.accentColor;
+                    document.getElementById('accentColorHex').innerText = s.accentColor;
+                }
+                if (s.skillDisplayStyle) {
+                    document.getElementById('skillDisplayStyle').value = s.skillDisplayStyle;
+                }
+                if (s.template) {
+                    selectTemplate(s.template);
+                }
+            }
+
+            // Rebuild dynamic form rows
+            renderExperienceInputs();
+            renderEducationInputs();
+            renderSkillInputs();
+            renderReferenceInputs();
+
+            // Refresh CV render & recalculate overflow
+            renderCV();
+        }
 
         function switchTab(tab) {
             document.getElementById('pane-design').classList.toggle('hidden', tab !== 'design');
@@ -653,6 +1160,7 @@
                     photoUrl = evt.target.result;
                     document.getElementById('avatarPreview').src = photoUrl;
                     renderCV();
+                    showNotification('Profile photo updated!', 'success');
                 };
                 reader.readAsDataURL(file);
             }
@@ -862,30 +1370,29 @@
             const accentColor = document.getElementById('accentColorPicker').value;
             const photoShape = document.getElementById('photoShape').value;
             const skillStyle = document.getElementById('skillDisplayStyle').value;
-            const showWatermark = document.getElementById('showWatermark').checked;
 
             if (currentTemplate === 'tpl-kelly') {
-                renderKellyTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark);
+                renderKellyTemplate(page, primaryColor, accentColor, photoShape, skillStyle);
             } else if (currentTemplate === 'tpl-brian') {
-                renderBrianTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark);
+                renderBrianTemplate(page, primaryColor, accentColor, photoShape, skillStyle);
             } else if (currentTemplate === 'tpl-isabel') {
-                renderIsabelTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark);
+                renderIsabelTemplate(page, primaryColor, accentColor, photoShape, skillStyle);
             } else if (currentTemplate === 'tpl-morgan') {
-                renderMorganTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark);
+                renderMorganTemplate(page, primaryColor, accentColor, photoShape, skillStyle);
             }
 
             checkPageOverflow();
         }
 
-        // TEMPLATE 1: Creative Gold & Dark
-        function renderKellyTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark) {
+        // TEMPLATE 1: Creative Gold & Dark (Guaranteed to show All Data: Summary, Awards, etc.)
+        function renderKellyTemplate(page, primaryColor, accentColor, photoShape, skillStyle) {
             page.innerHTML = `
                 <div class="flex h-full w-full">
                     <!-- Left Main Area -->
                     <div class="w-[62%] p-6 flex flex-col justify-between" style="background-color: #ffffff;">
                         <div>
                             <!-- Header Section -->
-                            <div class="flex items-center space-x-4 mb-5">
+                            <div class="flex items-center space-x-4 mb-4">
                                 <img src="${photoUrl}" class="cv-photo-img ${photoShape} object-cover border-4 border-slate-900 shadow-md">
                                 <div class="flex-1 py-3 px-4 rounded-r-2xl text-white font-bold" style="background-color: ${primaryColor};">
                                     <h1 class="font-extrabold uppercase leading-none tracking-wide">${cvData.fullName || 'YOUR NAME'}</h1>
@@ -893,12 +1400,22 @@
                                 </div>
                             </div>
 
+                            <!-- About Me / Summary -->
+                            ${cvData.summary ? `
+                                <div class="mb-4">
+                                    <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-0.5 rounded mb-1.5 inline-block font-sans" style="background-color: ${primaryColor};">
+                                        ABOUT ME
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed">${cvData.summary}</p>
+                                </div>
+                            ` : ''}
+
                             <!-- Education -->
-                            <div class="mb-5">
-                                <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-1 rounded mb-3 inline-block font-sans" style="background-color: ${primaryColor};">
+                            <div class="mb-4">
+                                <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-0.5 rounded mb-2.5 inline-block font-sans" style="background-color: ${primaryColor};">
                                     EDUCATION
                                 </div>
-                                <div class="space-y-3">
+                                <div class="space-y-2.5">
                                     ${cvData.educations.map(edu => `
                                         <div class="flex space-x-3">
                                             <div class="w-24 font-bold text-slate-800 shrink-0">${edu.years}</div>
@@ -912,11 +1429,11 @@
                             </div>
 
                             <!-- Experience -->
-                            <div class="mb-5">
-                                <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-1 rounded mb-3 inline-block font-sans" style="background-color: ${primaryColor};">
+                            <div class="mb-4">
+                                <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-0.5 rounded mb-2.5 inline-block font-sans" style="background-color: ${primaryColor};">
                                     EXPERIENCE
                                 </div>
-                                <div class="space-y-3.5">
+                                <div class="space-y-3">
                                     ${cvData.experiences.map(exp => `
                                         <div class="flex space-x-3">
                                             <div class="w-24 font-bold text-slate-800 shrink-0">${exp.years}</div>
@@ -929,23 +1446,32 @@
                                     `).join('')}
                                 </div>
                             </div>
+
+                            <!-- Awards & Honors -->
+                            ${cvData.awards ? `
+                                <div class="mb-2">
+                                    <div class="font-extrabold uppercase tracking-widest text-slate-900 px-3 py-0.5 rounded mb-1.5 inline-block font-sans" style="background-color: ${primaryColor};">
+                                        HONORS & AWARDS
+                                    </div>
+                                    <p class="text-slate-600 whitespace-pre-line leading-relaxed">${cvData.awards}</p>
+                                </div>
+                            ` : ''}
                         </div>
 
                         <div>
-                            ${showWatermark ? `<p class="text-[10px] text-slate-400 mb-1">Created by: Amanullah Khan</p>` : ''}
-                            <div class="h-2 rounded-full w-full" style="background-color: ${primaryColor};"></div>
+                            <div class="h-1.5 rounded-full w-full" style="background-color: ${primaryColor};"></div>
                         </div>
                     </div>
 
                     <!-- Right Dark Sidebar -->
                     <div class="w-[38%] p-6 text-white flex flex-col justify-between" style="background-color: ${accentColor};">
-                        <div class="space-y-5">
+                        <div class="space-y-4">
                             <!-- Contact Block -->
                             <div>
-                                <div class="border-2 px-3 py-1 text-center font-bold uppercase tracking-wider mb-3" style="border-color: ${primaryColor};">
+                                <div class="border-2 px-3 py-1 text-center font-bold uppercase tracking-wider mb-2.5" style="border-color: ${primaryColor};">
                                     CONTACT ME
                                 </div>
-                                <div class="space-y-2">
+                                <div class="space-y-1.5">
                                     <div class="flex items-start space-x-2">
                                         <i class="fa-solid fa-location-dot mt-1" style="color: ${primaryColor};"></i>
                                         <span>${cvData.address}</span>
@@ -967,7 +1493,7 @@
 
                             <!-- Skills Block -->
                             <div>
-                                <div class="border-2 px-3 py-1 text-center font-bold uppercase tracking-wider mb-3" style="border-color: ${primaryColor};">
+                                <div class="border-2 px-3 py-1 text-center font-bold uppercase tracking-wider mb-2.5" style="border-color: ${primaryColor};">
                                     PRO SKILLS
                                 </div>
                                 ${renderSkillsList(skillStyle, primaryColor)}
@@ -1012,8 +1538,8 @@
             `;
         }
 
-        // TEMPLATE 2: Modern Ocean Blue
-        function renderBrianTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark) {
+        // TEMPLATE 2: Modern Ocean Blue (Shows all data)
+        function renderBrianTemplate(page, primaryColor, accentColor, photoShape, skillStyle) {
             page.innerHTML = `
                 <div class="flex flex-col h-full w-full bg-white">
                     <!-- Top Ocean Header -->
@@ -1114,28 +1640,26 @@
                                 <p class="text-slate-600 whitespace-pre-line leading-relaxed mb-2">${cvData.awards}</p>
                                 <p class="text-slate-600 font-medium">${cvData.languages}</p>
                             </div>
-
-                            ${showWatermark ? `<p class="text-[10px] text-slate-400 text-right">Created by: Amanullah Khan</p>` : ''}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // TEMPLATE 3: Slate Executive Left
-        function renderIsabelTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark) {
+        // TEMPLATE 3: Slate Executive Left (Guaranteed to show About Me, Awards & All Data)
+        function renderIsabelTemplate(page, primaryColor, accentColor, photoShape, skillStyle) {
             page.innerHTML = `
                 <div class="flex h-full w-full">
                     <!-- Left Sidebar -->
                     <div class="w-[35%] p-6 text-white flex flex-col justify-between" style="background-color: ${accentColor};">
-                        <div class="space-y-5">
+                        <div class="space-y-4">
                             <div class="text-center">
                                 <img src="${photoUrl}" class="cv-photo-img ${photoShape} object-cover mx-auto mb-3 border-2 border-slate-400 shadow-md">
                             </div>
 
                             <div>
                                 <h3 class="font-bold uppercase tracking-widest border-b border-slate-600 pb-1 mb-2">CONTACT</h3>
-                                <div class="space-y-2 text-slate-300">
+                                <div class="space-y-1.5 text-slate-300">
                                     <p><strong>Phone:</strong><br>${cvData.phone}</p>
                                     <p><strong>Email:</strong><br>${cvData.email}</p>
                                     <p><strong>Address:</strong><br>${cvData.address}</p>
@@ -1154,10 +1678,13 @@
                                     <p class="text-slate-300 leading-relaxed">${cvData.languages}</p>
                                 </div>
                             ` : ''}
-                        </div>
 
-                        <div>
-                            ${showWatermark ? `<p class="text-[10px] text-slate-400 mb-2">Created by: Amanullah Khan</p>` : ''}
+                            ${cvData.awards ? `
+                                <div>
+                                    <h3 class="font-bold uppercase tracking-widest border-b border-slate-600 pb-1 mb-1">HONORS & AWARDS</h3>
+                                    <p class="text-slate-300 whitespace-pre-line leading-relaxed text-xs">${cvData.awards}</p>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -1165,15 +1692,23 @@
                     <div class="w-[65%] p-8 bg-white flex flex-col justify-between text-slate-800">
                         <div>
                             <!-- Header Title -->
-                            <div class="mb-5 border-b-2 border-slate-800 pb-3">
+                            <div class="mb-4 border-b-2 border-slate-800 pb-3">
                                 <h1 class="font-black tracking-tight text-slate-900">${cvData.fullName}</h1>
                                 <p class="font-bold tracking-wider uppercase text-slate-500 mt-1">${cvData.jobTitle}</p>
                             </div>
 
+                            <!-- About Me / Profile -->
+                            ${cvData.summary ? `
+                                <div class="mb-4">
+                                    <h3 class="font-bold uppercase tracking-wider border-b border-slate-300 pb-1 mb-1.5">ABOUT ME</h3>
+                                    <p class="text-slate-600 leading-relaxed">${cvData.summary}</p>
+                                </div>
+                            ` : ''}
+
                             <!-- Experience Section -->
-                            <div class="mb-5">
-                                <h3 class="font-bold uppercase tracking-wider border-b border-slate-300 pb-1 mb-3">EXPERIENCE</h3>
-                                <div class="space-y-3.5">
+                            <div class="mb-4">
+                                <h3 class="font-bold uppercase tracking-wider border-b border-slate-300 pb-1 mb-2.5">EXPERIENCE</h3>
+                                <div class="space-y-3">
                                     ${cvData.experiences.map(exp => `
                                         <div>
                                             <div class="flex justify-between items-baseline">
@@ -1188,9 +1723,9 @@
                             </div>
 
                             <!-- Education Section -->
-                            <div class="mb-5">
-                                <h3 class="font-bold uppercase tracking-wider border-b border-slate-300 pb-1 mb-3">EDUCATION</h3>
-                                <div class="space-y-2.5">
+                            <div class="mb-4">
+                                <h3 class="font-bold uppercase tracking-wider border-b border-slate-300 pb-1 mb-2">EDUCATION</h3>
+                                <div class="space-y-2">
                                     ${cvData.educations.map(edu => `
                                         <div>
                                             <div class="flex justify-between items-baseline">
@@ -1223,25 +1758,26 @@
             `;
         }
 
-        // TEMPLATE 4: Creative Arch & Accent
-        function renderMorganTemplate(page, primaryColor, accentColor, photoShape, skillStyle, showWatermark) {
+        // TEMPLATE 4: Creative Arch & Accent (Guaranteed to show References & All Data)
+        function renderMorganTemplate(page, primaryColor, accentColor, photoShape, skillStyle) {
             page.innerHTML = `
                 <div class="flex h-full w-full bg-white">
                     <!-- Left Arch Sidebar -->
                     <div class="w-[40%] p-5 text-white flex flex-col justify-between arch-top m-2" style="background-color: ${accentColor};">
-                        <div class="space-y-4">
-                            <div class="text-center pt-2">
+                        <div class="space-y-3.5">
+                            <div class="text-center pt-1">
                                 <img src="${photoUrl}" class="cv-photo-img rounded-full object-cover mx-auto border-4 border-amber-500 shadow-xl">
-                                <h1 class="font-black uppercase mt-3 tracking-wider text-white">${cvData.fullName}</h1>
+                                <h1 class="font-black uppercase mt-2.5 tracking-wider text-white">${cvData.fullName}</h1>
                                 <p class="text-amber-400 uppercase font-bold mt-0.5">${cvData.jobTitle}</p>
                             </div>
 
-                            <p class="text-slate-300 leading-relaxed text-center px-1">${cvData.summary}</p>
+                            <p class="text-slate-300 leading-relaxed text-center px-1 text-xs">${cvData.summary}</p>
 
-                            <div class="space-y-2 border-t border-slate-800 pt-3">
+                            <div class="space-y-1.5 border-t border-slate-800 pt-2.5">
                                 <p class="font-bold text-amber-400 uppercase tracking-widest text-center mb-1">CONTACT</p>
                                 <div class="flex items-center space-x-2 text-slate-300"><i class="fa-solid fa-phone text-amber-400"></i><span>${cvData.phone}</span></div>
                                 <div class="flex items-center space-x-2 text-slate-300"><i class="fa-solid fa-envelope text-amber-400"></i><span>${cvData.email}</span></div>
+                                <div class="flex items-center space-x-2 text-slate-300"><i class="fa-solid fa-globe text-amber-400"></i><span>${cvData.website}</span></div>
                                 <div class="flex items-center space-x-2 text-slate-300"><i class="fa-solid fa-location-dot text-amber-400"></i><span>${cvData.address}</span></div>
                             </div>
 
@@ -1250,20 +1786,16 @@
                                 ${renderSkillsList(skillStyle, primaryColor)}
                             </div>
                         </div>
-
-                        <div>
-                            ${showWatermark ? `<p class="text-[10px] text-slate-400 text-center">Created by: Amanullah Khan</p>` : ''}
-                        </div>
                     </div>
 
                     <!-- Right Main Content -->
                     <div class="w-[60%] p-6 flex flex-col justify-between text-slate-800">
-                        <div class="space-y-5">
+                        <div class="space-y-4">
                             <div>
-                                <div class="text-white font-bold uppercase px-4 py-1 rounded-r-full inline-block mb-2" style="background-color: ${primaryColor};">
+                                <div class="text-white font-bold uppercase px-4 py-0.5 rounded-r-full inline-block mb-2" style="background-color: ${primaryColor};">
                                     EDUCATION
                                 </div>
-                                <div class="space-y-2.5">
+                                <div class="space-y-2">
                                     ${cvData.educations.map(edu => `
                                         <div>
                                             <h4 class="font-bold text-slate-900">${edu.degree}</h4>
@@ -1274,10 +1806,10 @@
                             </div>
 
                             <div>
-                                <div class="text-white font-bold uppercase px-4 py-1 rounded-r-full inline-block mb-2" style="background-color: ${primaryColor};">
+                                <div class="text-white font-bold uppercase px-4 py-0.5 rounded-r-full inline-block mb-2" style="background-color: ${primaryColor};">
                                     WORK EXPERIENCE
                                 </div>
-                                <div class="space-y-3">
+                                <div class="space-y-2.5">
                                     ${cvData.experiences.map(exp => `
                                         <div>
                                             <div class="flex justify-between">
@@ -1292,12 +1824,28 @@
                             </div>
 
                             <div>
-                                <div class="text-white font-bold uppercase px-4 py-1 rounded-r-full inline-block mb-2" style="background-color: ${primaryColor};">
+                                <div class="text-white font-bold uppercase px-4 py-0.5 rounded-r-full inline-block mb-1.5" style="background-color: ${primaryColor};">
                                     AWARDS & LANGUAGES
                                 </div>
                                 <p class="whitespace-pre-line text-slate-600 leading-relaxed mb-1">${cvData.awards}</p>
                                 <p class="text-slate-600 font-medium">${cvData.languages}</p>
                             </div>
+
+                            ${cvData.references.length > 0 ? `
+                                <div>
+                                    <div class="text-white font-bold uppercase px-4 py-0.5 rounded-r-full inline-block mb-1.5" style="background-color: ${primaryColor};">
+                                        REFERENCES
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        ${cvData.references.map(r => `
+                                            <div>
+                                                <h4 class="font-bold text-slate-900">${r.name}</h4>
+                                                <p class="text-slate-600 text-small">${r.title} | ${r.phone}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -1353,10 +1901,10 @@
             const badge = document.getElementById('overflowBadge');
             
             if (page.scrollHeight > page.clientHeight + 2) {
-                badge.className = "hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20";
+                badge.className = "hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20";
                 badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>Overflow! Scale Font Down</span>`;
             } else {
-                badge.className = "hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                badge.className = "hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
                 badge.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>1-Page Fit: OK</span>`;
             }
         }
