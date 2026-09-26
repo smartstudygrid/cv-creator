@@ -692,8 +692,8 @@ First Aid Certification</textarea>
                 document.getElementById('primaryColorPicker').value = '#0d3b53';
                 document.getElementById('accentColorPicker').value = '#082b3d';
             } else if (tplId === 'tpl-sage') {
-                document.getElementById('primaryColorPicker').value = '#4d6a56';
-                document.getElementById('accentColorPicker').value = '#29382f';
+                document.getElementById('primaryColorPicker').value = '#5b7065';
+                document.getElementById('accentColorPicker').value = '#e7eae8';
             }
 
             updateColors();
@@ -1817,133 +1817,188 @@ First Aid Certification</textarea>
                 .filter(Boolean);
 
             page.innerHTML = `
-                <div class="flex flex-col h-full w-full bg-white text-slate-800 p-8 justify-between">
-                    <div>
-                        <!-- Header with Sage Avatar Ring -->
-                        <div class="flex items-center justify-between border-b-2 pb-6 mb-6" style="border-color: ${primaryColor};">
-                            <div>
-                                <h1 class="font-black text-3xl uppercase tracking-widest text-slate-900">${cvData.fullName || 'OLIVIA WILSON'}</h1>
-                                <p class="font-bold text-xs uppercase tracking-widest mt-1" style="color: ${primaryColor};">${cvData.jobTitle || 'DESIGNER AND ARCHITECT'}</p>
+                <div class="flex flex-col h-full w-full bg-white text-slate-800 overflow-hidden relative font-montserrat">
+                    
+                    <!-- TOP SAGE HEADER SECTION -->
+                    <div class="relative w-full shrink-0 text-white" style="background-color: ${primaryColor};">
+                        <div class="flex items-center p-7 pb-6 relative z-10">
+                            <!-- Circular Photo with Sage Ring Border -->
+                            <div class="w-[37%] shrink-0 flex justify-center items-center">
+                                <div class="w-48 h-48 rounded-full overflow-hidden border-[10px] shadow-lg shrink-0" style="border-color: ${primaryColor};">
+                                    <img src="${photoUrl}" class="w-full h-full object-cover">
+                                </div>
                             </div>
-                            <div class="w-24 h-24 rounded-full overflow-hidden border-4 p-1 shadow-md shrink-0" style="border-color: ${primaryColor};">
-                                <img src="${photoUrl}" class="w-full h-full object-cover rounded-full">
+
+                            <!-- Name, Title, and About Me on Sage Green Background -->
+                            <div class="w-[63%] pl-6 pr-4 pt-1">
+                                <h1 class="font-bold text-3xl tracking-[0.18em] text-white uppercase leading-tight">
+                                    ${cvData.fullName || 'OLIVIA WILSON'}
+                                </h1>
+                                <p class="font-semibold text-xs tracking-[0.24em] text-white/95 uppercase mt-1.5 mb-4">
+                                    ${cvData.jobTitle || 'DESIGNER AND ARCHITECT'}
+                                </p>
+                                
+                                ${cvData.summary ? `
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center space-x-2">
+                                            <i class="fa-solid fa-circle-user text-base text-white"></i>
+                                            <h3 class="font-bold text-xs uppercase tracking-widest text-white">ABOUT ME</h3>
+                                        </div>
+                                        <p class="text-white/95 text-xs leading-relaxed font-normal">${cvData.summary}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2-COLUMN LOWER SECTION -->
+                    <div class="flex-1 flex w-full overflow-hidden">
+                        
+                        <!-- LEFT COLUMN: Light Sage/Gray with White Pill Boxes -->
+                        <div class="w-[37%] p-6 space-y-6 flex flex-col justify-between shrink-0" style="background-color: ${accentColor};">
+                            <div class="space-y-6">
+                                
+                                <!-- SKILLS -->
+                                <div>
+                                    <div class="bg-white py-1.5 px-4 text-center font-bold tracking-[0.22em] text-[#33463c] text-xs uppercase mb-3 shadow-xs">
+                                        SKILLS
+                                    </div>
+                                    <ul class="space-y-1.5 text-xs text-[#3d5045] list-disc list-inside font-normal">
+                                        ${cvData.skills.map(s => `<li>${s.name}</li>`).join('')}
+                                    </ul>
+                                </div>
+
+                                <!-- LANGUAGES -->
+                                <div>
+                                    <div class="bg-white py-1.5 px-4 text-center font-bold tracking-[0.22em] text-[#33463c] text-xs uppercase mb-3 shadow-xs">
+                                        LANGUAGES
+                                    </div>
+                                    <ul class="space-y-1.5 text-xs text-[#3d5045] list-disc list-inside font-normal">
+                                        ${languagesList.map(l => `<li>${l}</li>`).join('')}
+                                    </ul>
+                                </div>
+
+                                <!-- EDUCATION -->
+                                <div>
+                                    <div class="bg-white py-1.5 px-4 text-center font-bold tracking-[0.22em] text-[#33463c] text-xs uppercase mb-3 shadow-xs">
+                                        EDUCATION
+                                    </div>
+                                    <div class="space-y-3 text-xs">
+                                        ${cvData.educations.map(edu => `
+                                            <div>
+                                                <h4 class="font-bold uppercase text-[#2b3a32]">${edu.degree}</h4>
+                                                <p class="text-[#516358]">${edu.school}</p>
+                                                ${edu.years ? `<p class="text-[#67796f] text-[11px]">${edu.years}</p>` : ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- CONTACT -->
+                                <div>
+                                    <div class="bg-white py-1.5 px-4 text-center font-bold tracking-[0.22em] text-[#33463c] text-xs uppercase mb-3 shadow-xs">
+                                        CONTACT
+                                    </div>
+                                    <ul class="space-y-2 text-xs text-[#3d5045] list-disc list-inside font-normal">
+                                        ${cvData.phone ? `<li>${cvData.phone}</li>` : ''}
+                                        ${cvData.email ? `<li class="break-all">${cvData.email}</li>` : ''}
+                                        ${cvData.website ? `<li class="break-all">${cvData.website}</li>` : ''}
+                                        ${cvData.address ? `<li>${cvData.address}</li>` : ''}
+                                    </ul>
+                                </div>
+
                             </div>
                         </div>
 
-                        <!-- 2-Column Layout -->
-                        <div class="grid grid-cols-12 gap-8">
-                            <!-- Left Column -->
-                            <div class="col-span-5 space-y-6">
-                                ${cvData.summary ? `
-                                    <div>
-                                        <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                            ABOUT ME
-                                        </h3>
-                                        <p class="text-xs text-slate-600 leading-relaxed font-normal">${cvData.summary}</p>
-                                    </div>
-                                ` : ''}
-
-                                <div>
-                                    <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                        SKILLS
-                                    </h3>
-                                    <ul class="space-y-1.5 text-xs text-slate-700">
-                                        ${cvData.skills.map(s => `
-                                            <li class="flex items-center space-x-2">
-                                                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${primaryColor};"></span>
-                                                <span class="font-medium">${s.name}</span>
-                                            </li>
-                                        `).join('')}
-                                    </ul>
+                        <!-- RIGHT COLUMN: White with Sage Header Banner & Experiences -->
+                        <div class="w-[63%] p-6 pl-8 flex flex-col justify-between bg-white relative">
+                            <div>
+                                <!-- WORK EXPERIENCE FULL-WIDTH BANNER -->
+                                <div class="py-1.5 px-4 font-bold tracking-[0.18em] text-white text-xs uppercase mb-4" style="background-color: ${primaryColor};">
+                                    WORK EXPERIENCE
                                 </div>
 
-                                <div>
-                                    <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                        LANGUAGES
-                                    </h3>
-                                    <ul class="space-y-1 text-xs text-slate-700">
-                                        ${languagesList.map(lang => `
-                                            <li class="flex items-center space-x-2">
-                                                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${primaryColor};"></span>
-                                                <span>${lang}</span>
-                                            </li>
-                                        `).join('')}
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                        EDUCATION
-                                    </h3>
-                                    <div class="space-y-2.5 text-xs">
-                                        ${cvData.educations.map(edu => `
-                                            <div>
-                                                <h4 class="font-bold uppercase text-slate-900">${edu.degree}</h4>
-                                                <p class="text-slate-600">${edu.school}</p>
-                                                ${edu.years ? `<p class="text-slate-400 text-[11px]">${edu.years}</p>` : ''}
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                        CONTACT
-                                    </h3>
-                                    <div class="space-y-1.5 text-xs text-slate-700">
-                                        <p><i class="fa-solid fa-phone mr-1.5" style="color: ${primaryColor};"></i>${cvData.phone}</p>
-                                        <p><i class="fa-solid fa-envelope mr-1.5" style="color: ${primaryColor};"></i>${cvData.email}</p>
-                                        <p><i class="fa-solid fa-globe mr-1.5" style="color: ${primaryColor};"></i>${cvData.website}</p>
-                                        <p><i class="fa-solid fa-location-dot mr-1.5" style="color: ${primaryColor};"></i>${cvData.address}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Right Column: Work Experience & Awards -->
-                            <div class="col-span-7 space-y-6">
-                                <div>
-                                    <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-3" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                        WORK EXPERIENCE
-                                    </h3>
-                                    <div class="space-y-4">
-                                        ${cvData.experiences.map(exp => `
-                                            <div>
-                                                <h4 class="font-bold text-xs uppercase text-slate-900">${exp.title}</h4>
-                                                <p class="font-semibold text-xs" style="color: ${primaryColor};">${exp.company} | ${exp.years}</p>
-                                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">${exp.desc}</p>
-                                            </div>
-                                        `).join('')}
-                                    </div>
+                                <!-- Work Experience List -->
+                                <div class="space-y-4 text-xs">
+                                    ${cvData.experiences.map(exp => `
+                                        <div>
+                                            <h4 class="font-bold uppercase text-[#2b3a32] text-xs tracking-wide">${exp.title}</h4>
+                                            <p class="font-bold text-[#45584d]">${exp.company}</p>
+                                            <p class="text-[#6d7f75] text-[11px] mb-1">${exp.years}</p>
+                                            <p class="text-[#4e6055] leading-relaxed font-normal">${exp.desc}</p>
+                                        </div>
+                                    `).join('')}
                                 </div>
 
                                 ${cvData.awards ? `
-                                    <div>
-                                        <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                            AWARDS & CERTIFICATIONS
-                                        </h3>
-                                        <p class="text-xs text-slate-600 whitespace-pre-line leading-relaxed">${cvData.awards}</p>
+                                    <div class="mt-4 pt-3 border-t border-slate-200">
+                                        <h4 class="font-bold uppercase text-[#2b3a32] text-xs mb-1">CERTIFICATIONS & HONORS</h4>
+                                        <p class="text-xs text-[#4e6055] whitespace-pre-line leading-relaxed">${cvData.awards}</p>
                                     </div>
                                 ` : ''}
 
                                 ${cvData.references.length > 0 ? `
-                                    <div>
-                                        <h3 class="font-bold uppercase tracking-wider text-xs border-b pb-1 mb-2" style="color: ${primaryColor}; border-color: ${primaryColor};">
-                                            REFERENCES
-                                        </h3>
+                                    <div class="mt-4 pt-3 border-t border-slate-200">
+                                        <h4 class="font-bold uppercase text-[#2b3a32] text-xs mb-1.5">REFERENCES</h4>
                                         <div class="grid grid-cols-2 gap-2 text-xs">
                                             ${cvData.references.map(r => `
                                                 <div>
-                                                    <h4 class="font-bold text-slate-900">${r.name}</h4>
-                                                    <p class="text-slate-600 text-[11px]">${r.title}</p>
-                                                    <p class="text-slate-500 text-[10px]">${r.phone}</p>
+                                                    <p class="font-bold text-[#2b3a32]">${r.name}</p>
+                                                    <p class="text-[#516358] text-[11px]">${r.title}</p>
+                                                    ${r.phone ? `<p class="text-[#6d7f75] text-[10px]">${r.phone}</p>` : ''}
                                                 </div>
                                             `).join('')}
                                         </div>
                                     </div>
                                 ` : ''}
                             </div>
+
+                            <!-- BOTTOM RIGHT DECORATIVE ACCENT: Dotted Halftone Arc & Corner Slash Graphics -->
+                            <div class="relative w-full h-28 pointer-events-none overflow-hidden flex items-end justify-end mt-2">
+                                <svg class="w-64 h-28" viewBox="0 0 260 110" fill="none" preserveAspectRatio="none">
+                                    <!-- Halftone Dotted Burst Arc -->
+                                    <g fill="#45584d" opacity="0.75">
+                                        <circle cx="85" cy="105" r="2.5" />
+                                        <circle cx="80" cy="92" r="2.5" />
+                                        <circle cx="78" cy="78" r="2.5" />
+                                        <circle cx="80" cy="65" r="2.5" />
+                                        <circle cx="87" cy="52" r="2.5" />
+                                        <circle cx="98" cy="41" r="2.5" />
+                                        <circle cx="112" cy="32" r="2.5" />
+                                        <circle cx="128" cy="26" r="2.5" />
+                                        <circle cx="145" cy="23" r="2.5" />
+
+                                        <circle cx="100" cy="105" r="2" />
+                                        <circle cx="96" cy="94" r="2" />
+                                        <circle cx="94" cy="82" r="2" />
+                                        <circle cx="96" cy="71" r="2" />
+                                        <circle cx="102" cy="60" r="2" />
+                                        <circle cx="111" cy="51" r="2" />
+                                        <circle cx="123" cy="44" r="2" />
+                                        <circle cx="136" cy="39" r="2" />
+                                        <circle cx="151" cy="36" r="2" />
+
+                                        <circle cx="115" cy="105" r="1.5" />
+                                        <circle cx="112" cy="95" r="1.5" />
+                                        <circle cx="110" cy="85" r="1.5" />
+                                        <circle cx="112" cy="76" r="1.5" />
+                                        <circle cx="117" cy="68" r="1.5" />
+                                        <circle cx="124" cy="61" r="1.5" />
+                                        <circle cx="134" cy="55" r="1.5" />
+                                        <circle cx="145" cy="51" r="1.5" />
+                                    </g>
+                                    <!-- Sage Green Corner Triangle / Polygon -->
+                                    <path d="M 160 110 L 188 50 L 260 50 L 260 110 Z" fill="${primaryColor}" />
+                                    <!-- Two White Diagonal Slashes -->
+                                    <path d="M 172 110 L 190 62 L 198 62 L 180 110 Z" fill="#ffffff" />
+                                    <path d="M 186 110 L 204 62 L 212 62 L 194 110 Z" fill="#ffffff" />
+                                </svg>
+                            </div>
+
                         </div>
+
                     </div>
+
                 </div>
             `;
         }
